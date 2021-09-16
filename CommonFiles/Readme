@@ -1,0 +1,17 @@
+#CSV merger for illumina
+docker run -it --rm -v /path/to/summaries/:/root/Data/ garcianacho/csak Rscript CSAK_csv_merger_Illumina.R
+
+#CSV merger for Nanopore
+docker run -it --rm -v /path/to/summaries/:/root/Data/ garcianacho/csak Rscript CASK_csv_merger_Nanopore.R
+
+#QCPlotter
+docker run -it --rm -v /path/to/summaries/:/root/Data/ garcianacho/csak Rscript CSAK_QCPlotter.R
+
+#SpikeExtractor
+docker run -it --rm -v /path/to/multifasta/:/root/Data/ garcianacho/csak Rscript CASK_Spike_Extractor.R multifasta.fa
+
+#FrameshiftFinder
+docker run -it --rm -v /path/to/multifasta/:/root/Data/ garcianacho/csak Rscript CSAK_Frameshift_Finder.R cores
+
+#NoiseExtractor
+docker run -it --rm -v /path/to/bam/:/root/Data/ garcianacho/csak Rscript CSAK_NoiseExtractor.R cores

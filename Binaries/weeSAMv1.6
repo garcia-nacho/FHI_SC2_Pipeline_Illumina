@@ -1,0 +1,792 @@
+#!/usr/bin/env python3
+#'''
+# weeSAMv1.6 replaces the coverage line plot with a colour-coded histogram and
+# fixes a bug where positions with 0 depth were being omitted from the coverage plot
+#
+#weeSAMv1.5 is a python (pysam) re-write of weeSAM written by Joseph Hughes with
+#some additional functionality.
+#
+#His original script:   (weeSAMv1.4)   can be found here:
+#https://github.com/josephhughes/Sequence-manipulation/blob/master/weeSAMv1.4
+
+######################################################################################
+######    Update tracker    ##########################################################
+#   12/07:
+#       -   Added this update tracker.  -   Increased the size of the svg figure
+#       -   Table and body elements are now properly closed off in html section.
+#       -   Help script will now print if no args are supplied to command line.
+#   13/07:
+#	-   Added a version number to argparse.
+#	-   The baby ascii is back!
+#	-   Joseph can't remember when he ever used the read cutoff (args.cutoff)
+#	-   Removed 0.5 * avg depth cols
+#	-   Customised argparse default help script to show required / not required
+#   11/10
+#   -   Added functionallity for multiple bams/sams.
+#   -   Added someones javascript in to sort tables.
+#
+#   18/1
+#'  -  Checks if user supplied a sam file when speccifying --bam
+#   - Deals with slashes and spaces in sequence name
+#   
+#   24/05/2019 - Matej Vucak Update 1
+#   - Added colour-intensity histogram plot
+#   - Fixed bug where genome positions with a depth of 0 were being ommitted from the plot
+#####################################################################################
+
+# Import packages
+import argparse
+from argparse import RawTextHelpFormatter
+import pysam
+import os
+import csv
+import statistics
+from math import log, ceil
+import matplotlib
+import shutil
+import sys
+import seaborn as sb 
+import numpy as np 
+matplotlib.use('agg')
+from matplotlib import pyplot as plt
+from matplotlib import colors
+
+
+
+#'''
+# Make argparse variables for:
+#    -    sam file
+#    -    bam file
+#    -    cut off
+#    -    out file
+#    -    plot
+#'''
+parser = argparse.ArgumentParser(description="A script to produce information from an "+
+            "input BAM or SAM file.\n",formatter_class=RawTextHelpFormatter, add_help=False)
+parser.add_argument("--sam", help="The input SAM file.\n")
+parser.add_argument("--bam", help="The input BAM file.\n")
+parser.add_argument("--cutoff", help="Cut off value for number of mapped reads. [Default = 0]\n")
+parser.add_argument("--overwrite", help="Overwrite the html directory if it already exists.\n", action="store_true")
+parser.add_argument("--mapped", help="Produce a bam file with only mapped reads and use this for analysis.", action="store_true")
+parser.add_argument("--out", help="Output file name.\n\tProduced file is a tab delimited .txt file "+
+                    "which contains the information seen down below\n")
+parser.add_argument("-v", "--version", help="weeSAM version number", action="store_true")
+parser.add_argument("--html", help="What you want the html file to be called. (.html)\n\t"+
+                    "Produces html pages with links to images containing coverage plots for each sequence.")
+parser.add_argument("-h","--help", action="store_true")
+args = parser.parse_args()
+
+def custom_help():
+    print("Required Arguments!!\n\t--bam [file.bam]\tOR\t--sam [file.sam]\n")
+    print("\t--html [file.html]\tAND/OR\t--out [myoutput.txt]\n")
+    print("\nOptional arguments:\n\t--overwrite:\t Add this if you want to overwrite a previously existing html directory"+
+    "\n\t--cutoff [int]\t Do not generate a report for a genome which has less than specified int number of reads mapped to it"+
+    "\n\t-v/--version\tCurrent weeSAM version number."+
+    "\n\t-h/--help\tShow this help script")
+
+if len(sys.argv) == 1 or args.help:
+    print("""
+              _)_
+           .-'(/ '-.
+          /    `    \\
+         /  -     -  \\
+        (`  a     a  `)
+         \     ^     /
+          '. '---' .'
+          .-`'---'`-.
+         /           \\
+        /  / '   ' \  \\
+      _/  /| S A M |\  \_
+     `/|\` |+++++++|`/|\`
+          /\       /\\
+          | `-._.-` |
+          \   / \   /
+          |_ |   | _|
+          | _|   |_ |
+          (ooO   Ooo)
+
+""")
+    custom_help()
+    print(
+"""
+Columns in table:
+    Ref_Name:   The identifier of the reference.
+    Ref_Len:    The length in bases of each reference.
+    Mapped_Reads:   Number of reads mapped to each reference.
+    Breadth:    The number of sites in the genome covered by reads.
+    %_Covered:  The percent of sites in the genome which have coverage.
+    Min_Depth:  Minimum read depth observed.
+    Max_Depth:  Max read depth observed.
+    Avg_Depth:  Mean read depth observed.
+    Std_Dev:    Standard deviation of the mean (Avg_Depth).
+    Above_0.2_Depth:    Percentage of sites which have greater than 0.2 * Avg_Depth.
+    Above_1_Depth:  Percentage of sites which are above Avg_Depth.
+    Above_1.8_Depth:    Percentage of sites which have greater than 1.8 * Avg_Depth.
+    Variation_Coefficient:  The mean of Std_Dev of the mean.
+""")
+    exit(1)
+
+# # Here's the variables to overwrite argparse for error testing
+# args.bam = '/Users/zackboyd/Desktop/spades2.bam,/Users/zackboyd/Desktop/tolBest.bam'
+# args.html = 'spades'
+# args.out = 'spades'
+# 
+# #
+
+if args.version:
+    print("weeSAM is currently on version number:\t1.6\n")
+    exit(1)
+
+#'''
+# Check if a sam or bam has been given to the command line. Only one can be given.
+#'''
+# Check if none exist
+if args.sam is None and args.bam is None:
+   print("You haven't specified a bam or a sam file. Please do this with either the"
+         "\n\t--sam `file.sam`\n\t--bam `file.bam`")
+   exit(1)
+# Check if both exists
+elif args.sam and args.bam:
+    print("You've specified both a sam and bam file, you can only specify one."
+        " Please use either\n\t--sam `file.sam`\n\tOR\n\t--bam`file.bam`")
+    exit(1)
+# Check if either a plot or output is specified
+if args.html is None and args.out is None:
+    print("You must specify either one or both of the following\n\t--html myfile.html\n\t--out myfile.txt")
+    exit(1)
+
+# Check if the html directory exists in the current wd. If it does check whether the use
+# has overwrite set.
+if args.html:
+    if os.path.exists(args.html.split(".")[0]+"_html_results"):
+        if args.overwrite:
+            shutil.rmtree(args.html.split(".")[0]+"_html_results", ignore_errors=True)
+        else:
+            print("The html directory already exists. If you want to remove if add\n\t--overwrite")
+            exit(1)
+
+# Check if the --out directory exists in the current wd. If it does check whether the use
+# has overwrite set.
+if args.out:
+    if os.path.exists(args.out):
+        if args.overwrite:
+            os.remove(args.out)
+        else:
+            print("Output file already exists in current wd. if you want to remove it add \n\t--overwrite")
+            exit(1)
+#'''
+#Check if the user has specified a cutoff value. if not set it to zero.
+#'''
+if args.cutoff is None:
+    args.cutoff = 0
+else:
+    args.cutoff = int(args.cutoff)
+
+
+#'''
+# If a user has given a sam file sort it and call it their input minus .sam plus .bam
+# after this args.bam is always going to exists, so I can write code for args.bam and
+# it will always work.
+#'''
+sam_list = []
+if args.sam:
+    print("Sorting SAM file...")
+    for i in args.sam.split(","):
+        pysam.sort("-o", args.sam.rsplit(".")[0]+".bam", args.sam)
+        bam = args.sam.rsplit(".")[0]+".bam"
+        sam_list.append(bam)
+        #os.remove(args.sam)
+
+#'''
+# Work on the bam file generated from sam2bam or the one given on the command line.
+#'''
+bam_list = []
+if args.bam:
+    for i in args.bam.split(","):
+        bam_list.append(i)
+
+
+def process_bam(f_list):
+    for args.bam in f_list:
+        #Code to filter bam file for only mapped reads.
+        if args.mapped:
+            print(pysam.view('-h', '-F', '4',  args.bam), file=open('tmp_mapped.sam', 'w'), end='')
+            pysam.sort('-o', args.bam.rsplit('.')[0]+'_mapped.bam', 'tmp_mapped.sam')
+            os.remove('tmp_mapped.sam')
+            args.bam = args.bam.rsplit('.')[0] + '_mapped.bam'
+
+        if args.bam.endswith('.sam'):
+            print('You specified --bam but you supplied a .sam file.')
+            exit(1)
+        print("----\tProcessing: "+ args.bam + "\t----")
+        if args.bam.startswith("~"):
+            args.bam = os.path.expanduser(args.bam)
+        # Index bam file
+        if not os.path.isfile(args.bam + ".bai"):
+            pysam.index(args.bam)
+        #'''
+        #samtools idxstats the bam file and write the results to tmp_mapped.txt.
+        #Then pull out mapped unmapped reads from this file.
+        #'''
+        print(pysam.idxstats(args.bam), end="", file=open("tmp_mapped.txt","w"))
+        with open("tmp_mapped.txt", "r") as f:
+            # Dictionary which stores the values to print to output file later.
+            # { NAME : REFLEN\tMAPPEDREADS }
+            stat_dict = {}
+            contents = csv.reader(f, delimiter="\t")
+            # Counter for tot unmapped / mapped
+            total_unmapped = 0
+            total_mapped = 0
+            for line in contents:
+                total_unmapped += int(line[3])
+                total_mapped += int(line[2])
+                if int(line[2]) > int(args.cutoff):
+                    key = stat_dict.setdefault(line[0],[])
+                    key.append(line[1])
+                    key.append(line[2])
+
+            f.close()
+
+        #Remove the temp samtools idxstats file
+        os.remove("tmp_mapped.txt")
+        # Print summary stats of reads to screen.
+        print("Total # Mapped Reads:\t"+str(total_mapped)+"\nTotal # Unmapped Reads:\t"+str(total_unmapped))
+        print("Total # Reads:\t"+str(int(total_mapped)+int(total_unmapped)))
+
+        #'''
+        # samtools depth the bam file for coverage statistics, including positions with 0 depth.
+        #'''
+        print("Generating a depth file, this may take a while.")
+        print(pysam.depth("-d", "1000000", "-a", args.bam), end="", file=open("tmp_depth.txt", "w"))
+        #'''
+        # Opens SAM depth file and stores the data in a dictionary.
+        # Each key in the dictionary corresponds to a single contig from the alignment file.
+        # Each key points to a list of depths at each position in the genome. 
+        # List index corresponds to position in genome + 1. e.g. element [100] in list is depth at position 101 in genome
+        #'''
+        min_dict = {}
+        with open("tmp_depth.txt", "r") as f:
+            data = csv.reader(f, delimiter="\t")
+            for line in data:
+                key = min_dict.setdefault(line[0],[])
+                key.append(int(line[2]))
+            f.close()
+
+        # Remove the temp file
+        os.remove("tmp_depth.txt")
+
+        #'''
+        # Store the average depth as a dictionary. This will be needed to calculate site with 0.2 of mean cov
+        # etc. Looping through the temp depth data stored in mem to see these sites.
+        #'''
+        avg_dict = {}
+        for i in stat_dict:
+            avg_dict[i] = statistics.mean(min_dict[i])
+
+        #'''
+        #Use the avg dict from above to loop through each element in dict and check whether its value is above the
+        #specified threshold.
+        #if it is append the value 1 to a dict list, one for each threshold.
+        #Maths can then be applied to this new list to work out percentage of site above the threshold.
+        #'''
+        two_dict = {}
+        five_dict = {}
+        eighteen_dict = {}
+        one_dict = {}
+        percent_dict = {}
+        for i in stat_dict:
+            for j in min_dict[i]:
+                # Get the total number of sites into a dict. You can then compare how many elements in this
+                # dict against the ref len to get percent coverage
+                percent_key = percent_dict.setdefault(i, [])
+                percent_key.append(1)
+                # If the criteria is met make the dict value a list, and append 1 to the dict value
+                if j > float(avg_dict[i] * 1.8):
+                    key = eighteen_dict.setdefault(i, [])
+                    key.append(1)
+                # If it isnt met create the dict value but append 0 to it. This is needed as if the criteria
+                # isnt met the dict key/value isnt created thus it can't be printer later.
+                else:
+                    key = eighteen_dict.setdefault(i, [])
+                    key.append(0)
+                if j > float(avg_dict[i]):
+                    key_1 = one_dict.setdefault(i, [])
+                    key_1.append(1)
+                else:
+                    key_1 = one_dict.setdefault(i, [])
+                    key_1.append(0)
+                if j > float(avg_dict[i] * 0.5):
+                    key_5 = five_dict.setdefault(i, [])
+                    key_5.append(1)
+                else:
+                    key_5 = five_dict.setdefault(i, [])
+                    key_5.append(0)
+                if j > float(avg_dict[i] * 0.2):
+                    key_2 = two_dict.setdefault(i, [])
+                    key_2.append(1)
+                else:
+                    key_2 = two_dict.setdefault(i, [])
+                    key_2.append(0)
+
+
+        # '''
+        # A function which plots a line graph based on an input list and a title. The funciton returns the plot.
+        # Zack's old line plot, currently not called.
+        # '''
+        def my_plot(lst, name):
+            fig = plt.figure(figsize=(16, 6))
+            point_2 = []
+            one_eight = []
+            avg = []
+            for i in range(len(lst)):
+                point_2.append(int(avg_dict[name]*0.2))
+                one_eight.append(int(avg_dict[name]*1.8))
+                avg.append(int(avg_dict[name]))
+            plt.plot(lst)
+            plt.plot(point_2,linestyle="--", label="Average depth * 0.2")
+            plt.plot(avg, linestyle="--", label="Average depth")
+            plt.plot(one_eight,linestyle="--", label="Average depth * 1.8")
+            plt.xlabel("Position")
+            plt.ylabel("Depth of coverage")
+            plt.title(name)
+            plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=1,
+                       ncol=3, mode="expand", borderaxespad=0.)
+            return fig
+
+
+        # Colours columns in a histogram plot according to their y value.
+        # fig: The histogram plot object.
+        # values: The y values of all the columns in the histogram.
+        def color_bins_by_intensity(fig, values, bins):
+            patches = fig.patches # Get columns.
+            intensity_ratios = values/values.max() # Get standardised values.
+            norm = colors.Normalize(intensity_ratios.min(), intensity_ratios.max()) # Function to normalise color value by standardised depth
+            
+            for intensity, patch in zip(intensity_ratios, patches):
+                color = matplotlib.cm.get_cmap("winter")(norm(intensity))
+                patch.set_facecolor(color)
+
+        # Plots a colour-coded coverage depth histogram for a given alignment.
+        # coverage_stats: A list of depths for each position in the genome, as output by samtools depth -a. List index corresponds to position in genome.
+        # name: Contig name. Used to retrieve average depth from avg_dict and as plot title.
+        def plot_coverage_histogram(coverage_stats, name):
+            # Calculate bin size for histogram based on length of genome alignment. 
+            # 0-10^4: 1; 10^4-10^5: 10; 10^5-10^6: 100 etc.
+            temp = len(coverage_stats)/10000
+            exp = ceil(log(temp, 10)) # Get highest exponent as whole number.
+            bin_size = 10**exp
+
+            plt.figure(figsize=(30,5))
+
+            # Create lists to plot lines at 0.2*average, average and 1.8*average depth.
+            point_2 = len(coverage_stats) * [int(avg_dict[name]*0.2)]
+            one_eight = len(coverage_stats) * [int(avg_dict[name]*1.8)]
+            avg = len(coverage_stats) * [int(avg_dict[name])]
+
+            # Create and plot histogram in seaborn. hist_kws passed onto matplotlib are crucial: remove edge colours and
+            # change y value for each Position from frequency (would always be 1) to the depth value.
+            ax = sb.distplot(a=range(0, len(coverage_stats)), hist_kws={"weights":[x/bin_size for x in coverage_stats], "edgecolor":"k", "linewidth":0, "color":["r"]},
+            kde=False, bins=np.arange(0,len(coverage_stats), bin_size))
+
+            # Create separate numpy histogram to obtain y-values and bins. This histogram is not plotted. Necessary due to quirk of seaborn distplot, if we want color-intensiy.
+            values, bins = np.histogram(a=range(0, len(coverage_stats)), weights = [x/bin_size for x in coverage_stats], bins = np.arange(0, len(coverage_stats), bin_size))
+
+            # Plot horizontal lines representing depth statistics (average, 0.2*average, 1.8*average)
+            plt.plot(point_2,linestyle="--", label="Average depth * 0.2")
+            plt.plot(avg, linestyle="--", label="Average depth")
+            plt.plot(one_eight,linestyle="--", label="Average depth * 1.8")
+
+            fig = ax.get_figure()
+
+            color_bins_by_intensity(ax, values, bins) # Colour columns
+
+            sb.despine() # Remove top and right axes.
+            ax.set(xlabel="Position in Genome", title=name+"\nDepth of Coverage Along Genome (1 column=" + str(bin_size) +" bases)", ylabel = "Depth")
+            return fig
+
+        #'''
+        #Open a file, called whatever the user specified and print to it.
+        #Open a html file if args.plot is given to argparse
+        #'''
+        if args.out:
+            out_file = open(args.out, "a")
+
+        args.bam = args.bam.rsplit("/")[-1]
+        if args.html:
+            directory = str(args.html).split(".")[0]+"_html_results"
+            if not os.path.exists(directory):
+                os.mkdir(directory)
+
+            if not os.path.exists(directory + "/figures"):
+                os.mkdir(directory + "/figures")
+
+            figure_path = directory+ "/figures/"+str(args.bam).split(".")[0] + "_figures"
+            os.mkdir(figure_path)
+
+            save_path = directory+ "/figures/"+str(args.bam).split(".")[0] + "_figures/"
+
+
+            if args.html:
+                html_str = """
+    <html>
+    <head>
+    <style>
+    table {{
+        font-family: arial;
+        border-collapse: collapse;
+        width: 100%;
+    }}
+    
+    td, th {{
+        border: 1px solid #000000;
+        text-align: left;
+        padding: 8px;
+    }}
+    
+    tr:nth-child(even) {{
+        background-color: #dddddd;
+    }}
+    
+    </style>
+    <script type="text/javascript">
+/* 
+   Willmaster Table Sort
+   Version 1.1
+   August 17, 2016
+   Updated GetDateSortingKey() to correctly sort two-digit months and days numbers with leading 0.
+   Version 1.0, July 3, 2011
+
+   Will Bontrager
+   https://www.willmaster.com/
+   Copyright 2011,2016 Will Bontrager Software, LLC
+
+   This software is provided "AS IS," without 
+   any warranty of any kind, without even any 
+   implied warranty such as merchantability 
+   or fitness for a particular purpose.
+   Will Bontrager Software, LLC grants 
+   you a royalty free license to use or 
+   modify this software provided this 
+   notice appears on all copies. 
+*/
+//
+// One placed to customize - The id value of the table tag.
+
+
+//
+//////////////////////////////////////
+var TableIDvalue = 'wsTable';
+var TableLastSortedColumn = -1;
+function SortTable() {{
+var sortColumn = parseInt(arguments[0]);
+var type = arguments.length > 1 ? arguments[1] : 'T';
+var dateformat = arguments.length > 2 ? arguments[2] : '';
+var table = document.getElementById(TableIDvalue);
+var tbody = table.getElementsByTagName("tbody")[0];
+var rows = tbody.getElementsByTagName("tr");
+var arrayOfRows = new Array();
+type = type.toUpperCase();
+dateformat = dateformat.toLowerCase();
+for(var i=0, len=rows.length; i<len; i++) {{
+	arrayOfRows[i] = new Object;
+	arrayOfRows[i].oldIndex = i;
+	var celltext = rows[i].getElementsByTagName("td")[sortColumn].innerHTML.replace(/<[^>]*>/g,"");
+	if( type=='D' ) {{ arrayOfRows[i].value = GetDateSortingKey(dateformat,celltext); }}
+	else {{
+		var re = type=="N" ? /[^\.\-\+\d]/g : /[^a-zA-Z0-9]/g;
+		arrayOfRows[i].value = celltext.replace(re,"").substr(0,25).toLowerCase();
+		}}
+	}}
+if (sortColumn == TableLastSortedColumn) {{ arrayOfRows.reverse(); }}
+else {{
+	TableLastSortedColumn = sortColumn;
+	switch(type) {{
+		case "N" : arrayOfRows.sort(CompareRowOfNumbers); break;
+		case "D" : arrayOfRows.sort(CompareRowOfNumbers); break;
+		default  : arrayOfRows.sort(CompareRowOfText);
+		}}
+	}}
+var newTableBody = document.createElement("tbody");
+for(var i=0, len=arrayOfRows.length; i<len; i++) {{
+	newTableBody.appendChild(rows[arrayOfRows[i].oldIndex].cloneNode(true));
+	}}
+table.replaceChild(newTableBody,tbody);
+}} // function SortTable()
+
+function CompareRowOfText(a,b) {{
+var aval = a.value;
+var bval = b.value;
+return( aval == bval ? 0 : (aval > bval ? 1 : -1) );
+}} // function CompareRowOfText()
+
+function CompareRowOfNumbers(a,b) {{
+var aval = /\d/.test(a.value) ? parseFloat(a.value) : 0;
+var bval = /\d/.test(b.value) ? parseFloat(b.value) : 0;
+return( aval == bval ? 0 : (aval > bval ? 1 : -1) );
+}} // function CompareRowOfNumbers()
+
+function GetDateSortingKey(format,text) {{
+if( format.length < 1 ) {{ return ""; }}
+format = format.toLowerCase();
+text = text.toLowerCase();
+text = text.replace(/^[^a-z0-9]*/,"");
+text = text.replace(/[^a-z0-9]*$/,"");
+if( text.length < 1 ) {{ return ""; }}
+text = text.replace(/[^a-z0-9]+/g,",");
+var date = text.split(",");
+if( date.length < 3 ) {{ return ""; }}
+var d=0, m=0, y=0;
+for( var i=0; i<3; i++ ) {{
+	var ts = format.substr(i,1);
+	if( ts == "d" ) {{ d = date[i]; }}
+	else if( ts == "m" ) {{ m = date[i]; }}
+	else if( ts == "y" ) {{ y = date[i]; }}
+	}}
+d = d.replace(/^0/,"");
+if( d < 10 ) {{ d = "0" + d; }}
+if( /[a-z]/.test(m) ) {{
+	m = m.substr(0,3);
+	switch(m) {{
+		case "jan" : m = String(1); break;
+		case "feb" : m = String(2); break;
+		case "mar" : m = String(3); break;
+		case "apr" : m = String(4); break;
+		case "may" : m = String(5); break;
+		case "jun" : m = String(6); break;
+		case "jul" : m = String(7); break;
+		case "aug" : m = String(8); break;
+		case "sep" : m = String(9); break;
+		case "oct" : m = String(10); break;
+		case "nov" : m = String(11); break;
+		case "dec" : m = String(12); break;
+		default    : m = String(0);
+		}}
+	}}
+m = m.replace(/^0/,"");
+if( m < 10 ) {{ m = "0" + m; }}
+y = parseInt(y);
+if( y < 100 ) {{ y = parseInt(y) + 2000; }}
+return "" + String(y) + "" + String(m) + "" + String(d) + "";
+}} // function GetDateSortingKey()
+</script>
+
+
+    </head>
+    <body>
+    
+        <h5 style="align: centre;">{title}</h5>     
+    
+        <table id="wsTable" class="no wrap">
+        <thead>
+            <tr>
+                <th><a href="javascript:SortTable(0,'T');">Bam_File</a></th>
+                <th>Ref_Name</th>
+                <th><a href="javascript:SortTable(2,'N');">Ref_Len</a></th>
+                <th><a href="javascript:SortTable(3,'N');">Mapped_Reads</a></th>
+                <th><a href="javascript:SortTable(4,'N');">Breadth</a></th>
+                <th><a href="javascript:SortTable(5,'N');">%_Covered</a></th>
+                <th><a href="javascript:SortTable(6,'N');">Min_Depth</a></th>
+                <th><a href="javascript:SortTable(7,'N');">Max_Depth</a></th>
+                <th><a href="javascript:SortTable(8,'N');">Avg_Depth</a></th>
+                <th>Std_Dev</th>
+                <th>Above_0.2_Depth</th>
+                <th>Above_1_Depth</th>
+                <th>Above_1.8_Depth</th>
+                <th>Variation_Coefficient</th>
+            </tr> 
+        </thead>
+        <tbody>
+            """
+                if len(f_list) == 1:
+                    html_str = html_str.format(title="weeSAM output for file:\t" + str(args.bam.rsplit("/")[-1]))
+                else:
+                    html_str = html_str.format(title="weeSAM output for files:\t")
+
+        if args.out:
+            # Print the file headers
+            if args.bam == f_list[0].rsplit("/")[-1]:
+                if len(f_list) > 1:
+                    print("Bam_file\tRef_Name\tRef_Len\tMapped_Reads\tBreadth\t%_Covered\tMin_Depth\tMax_Depth\tAvg_Depth\t"
+                          "Std_Dev\tAbove_0.2_Depth\tAbove_1_Depth\tAbove_1.8_Depth\tVariation_Coefficient"
+                        , file=out_file)
+                else:
+                    print("Ref_Name\tRef_Len\tMapped_Reads\tBreadth\t%_Covered\tMin_Depth\tMax_Depth\tAvg_Depth\t"
+                          "Std_Dev\tAbove_0.2_Depth\tAbove_1_Depth\tAbove_1.8_Depth\tVariation_Coefficient"
+                        , file=out_file)
+
+        for i in stat_dict:
+            print("Processing:\t"+str(i)+"\t....")
+            #'''
+            #Make variables of all the information which needs printed. These will change for each element in the
+            #dict loop
+            #'''
+            abnormal = False
+            ref_name = str(i).rstrip()
+            if any((c in set('/ ')) for c in ref_name):
+                print('Your sequence name contained spaces and/or slash characters. Replaced these with underscores and dashes respectively for readability.')
+                ref_name = str(i).replace('/', '-').replace(' ', '_')
+                abnormal = True
+
+            ref_len = str(stat_dict[i][0])
+            mapped_reads = str(stat_dict[i][1])
+            breadth = str(sum(percent_dict[i]))
+            covered = "%.2f"%(sum(percent_dict[i])/int(stat_dict[i][0])*100)
+            minimum = str(min(min_dict[i]))
+            maximum = str(max(min_dict[i]))
+            average = "%.2f"%(statistics.mean(min_dict[i]))
+            standard_dev = "%.2f"%(statistics.stdev(min_dict[i]))
+            above_2 = "%.2f"%(sum(two_dict[i])/int(stat_dict[i][0])*100)
+            above_5 = "%.2f"%(sum(five_dict[i])/int(stat_dict[i][0])*100)
+            above_1 = "%.2f"%(sum(one_dict[i])/int(stat_dict[i][0])*100)
+            above_18 = "%.2f"%(sum(eighteen_dict[i])/int(stat_dict[i][0])*100)
+            var_coeff = "%.2f"%(statistics.stdev(min_dict[i])/statistics.mean(min_dict[i]))
+
+            #'''
+            #If html has been specified make plots and save them in the new html dir which was created.
+            #'''
+            if args.html:
+                fig = plot_coverage_histogram(min_dict[i], i)
+                fig.savefig(str(save_path)+ str(ref_name) + '.svg', format='svg')
+
+                # The html string for the 'index' html. Which contains links to the other html files
+                # in the html directory
+                html_add = """
+        <tr>
+            <td>{bam_f}</td>
+            <td><a href={link}>{ref_name}</a></td>
+            <td>{ref_len}</td>
+            <td>{mapped_reads}</td>
+            <td>{breadth}</td>
+            <td>{covered}</td>
+            <td>{min}</td>
+            <td>{max}</td>
+            <td>{avg}</td>
+            <td>{stdev}</td>
+            <td>{point2}</td>
+            <td>{one}</td>
+            <td>{one_eight}</td>
+            <td>{var_co}</td>
+        </tr>
+            """.format(bam_f=str(args.bam),link="figures/"+str(args.bam).split(".")[0]+"_figures/"+ref_name+".html", ref_name=ref_name, ref_len=ref_len,
+                       mapped_reads=mapped_reads,
+                       breadth=breadth,
+                       covered=covered,
+                       min=minimum, max=maximum,
+                       avg=average,
+                       stdev=standard_dev,
+                       point2=above_2,
+                       one=above_1,
+                       one_eight=above_18,
+                       var_co=var_coeff)
+                #  This could be improved.
+                # We want to write this to the new files. It's the same as the previous string
+                # excpet the hyperlink has been removed
+                html_end = """
+            <tr> 
+                <td>{bam_f}</td>
+                <td>{name}</td>
+                <td>{ref_len}</td>
+                <td>{mapped_reads}</td>
+                <td>{breadth}</td>
+                <td>{covered}</td>
+                <td>{min}</td>
+                <td>{max}</td>
+                <td>{avg}</td>
+                <td>{stdev}</td>
+                <td>{point2}</td>
+                <td>{one}</td>
+                <td>{one_eight}</td>
+                <td>{var_co}</td>
+            </tr>
+
+            """.format(bam_f=str(args.bam).split(".")[0],name=ref_name, ref_len=ref_len,
+                       mapped_reads=mapped_reads,
+                       breadth=breadth,
+                       covered=covered,
+                       min=minimum, max=maximum,
+                       avg=average,
+                       stdev=standard_dev,
+                       point2=above_2,
+                       one=above_1,
+                       one_eight=above_18,
+                       var_co=var_coeff)
+
+                # Write this html string to the new files in the directory
+                html_new = """
+            <img src={image} alt={image_man}>
+                """.format(image=ref_name+".svg", image_man=ref_name)
+                open(save_path + str(ref_name) + ".html", "w").write(html_str + html_new + html_end )
+
+
+            if args.out:
+                if len(f_list) > 1:
+                    # Print contig / seq name   ref len     reads mapped
+                    print(str(args.bam).split(".")[0] + "\t" + ref_name + "\t" + ref_len +
+                          "\t" + mapped_reads + "\t" +
+                          # Print the breadth and the percentage covered
+                          breadth + "\t" + covered + "\t" +
+                          # Print the minimum and maximum depth values for each seq / contig
+                          minimum + "\t" + maximum + "\t" +
+                          # Print the mean value of depth for each seq / contig to two dp and the std devitaton
+                          average + "\t" + standard_dev + "\t" +
+                          # Print the % of sites which meet the criteria specified to two dp
+                          # sites above 0.2 mean coverage
+                          above_2 + "\t" +
+                          # sites above mean coverage
+                          above_1 + "\t" +
+                          # sites above 1.8 mean coverage.
+                          above_18 + "\t" +
+                          # Print the variation coefficient
+                          var_coeff, file=out_file)
+                else:
+                    # Print contig / seq name   ref len     reads mapped
+                    print(ref_name+"\t"+ref_len+"\t"+mapped_reads+"\t"+
+                    # Print the breadth and the percentage covered
+                    breadth+"\t"+covered +"\t" +
+                    # Print the minimum and maximum depth values for each seq / contig
+                    minimum+"\t"+maximum+ "\t" +
+                    # Print the mean value of depth for each seq / contig to two dp and the std devitaton
+                    average+"\t"+standard_dev+"\t"+
+                    # Print the % of sites which meet the criteria specified to two dp
+                    #sites above 0.2 mean coverage
+                    above_2+"\t"+
+                    #sites above mean coverage
+                    above_1+"\t"+
+                    #sites above 1.8 mean coverage.
+                    above_18+"\t"+
+                    # Print the variation coefficient
+                    var_coeff,file=out_file)
+
+            if args.html:
+                if len(f_list) > 1:
+                    if not os.path.isfile(directory + "/index.html"):
+                        root = open(directory + "/index.html", "a")
+                        print(html_str, file=root)
+                        print(html_add, file=root)
+
+                    else:
+                        root = open(directory + "/index.html", "a")
+                        print(html_add, file=root)
+
+
+                else:
+                    if not os.path.isfile(directory + "/" +args.bam.split(".")[0] + ".html"):
+                        html_file = open(directory + "/" + str(args.bam).split(".")[0] + ".html", "a")
+                        html_file.write(html_str)
+                        print(html_add, file=html_file)
+                    else:
+                        print(html_add, file=html_file)
+
+    if len(f_list) > 1:
+        print("\t</tbdody>\n</table>\n</body>\n</html>", file=root)
+    else:
+        if not args.out:
+            print("\t</tbdody>\n</table>\n</body>\n</html>", file=html_file)
+
+
+if args.bam:
+    process_bam(bam_list)
+if args.sam:
+    process_bam(sam_list)
+
+
