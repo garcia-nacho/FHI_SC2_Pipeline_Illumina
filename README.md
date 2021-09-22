@@ -32,7 +32,8 @@ Alternativetly, it is posible to *pull* updated builds from [dockerhub](https://
 
 ## Running the pipeline
 
-The script expects this folder structure:
+The script expects this folder structure:    
+<pre>
 ./_    
   |-ExperimentXX.xlsx      
   |-Sample1     
@@ -46,7 +47,8 @@ The script expects this folder structure:
       |-Sample2_SX_LXXXX_R2.fastq.gz
   |-...   
 
-
+</pre>
+    
 Where the fastq.gz files er inside independent folders for each Sample
 
 The scripts expects a .xlsx file, that contains information about the position of the samples on a 96-well-plate and the DNA concentration (alternatively this column can be used for the Ct-values).
