@@ -15,7 +15,7 @@ Docker-based solution for sequence analysis of SARS-CoV-2 Illumina samples
  
 *Note that building the image for the first time can take up to two hours.* 
  
-Alternativetly, it is posible to *pull* updated builds from [dockerhub](https://hub.docker.com/repository/docker/garcianacho/fhisc2):
+Alternativetly, it is posible to *pull* updated builds from [Dockerhub](https://hub.docker.com/repository/docker/garcianacho/fhisc2):
 
 <code>docker pull garcianacho/fhisc2:Illumina</code>
 
