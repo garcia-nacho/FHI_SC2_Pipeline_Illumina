@@ -4,7 +4,7 @@ Bioinformatic pipeline for SARS-CoV-2 sequence analysis used at the [Folkehelsei
 ## Description
 Docker-based solution for sequence analysis of SARS-CoV-2 Illumina samples 
 
-## Protocols supported
+## Primersets supported
 [ArticV3](https://github.com/artic-network/artic-ncov2019/tree/master/primer_schemes/nCoV-2019/V3)   
 [ArticV4](https://github.com/artic-network/artic-ncov2019/tree/master/primer_schemes/nCoV-2019/V4)   
 
