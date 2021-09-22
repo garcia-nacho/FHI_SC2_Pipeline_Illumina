@@ -12,14 +12,22 @@ Docker-based solution for sequence analysis of SARS-CoV-2 Illumina samples
 <code>git clone https://github.com/garcia-nacho/FHI_SC2_Pipeline_Illumina </code>  
 <code> cd FHI_SC2_Pipeline_Illumina </code>   
 <code> docker build -t garcianacho/fhisc2:Illumina . </code>
-   
+ 
+*Note that building the image for the first time can takes up to two hours.* 
+ 
 Alternativetly, it is posible to *pull* updated builds from [dockerhub](https://hub.docker.com/repository/docker/garcianacho/fhisc2):
 
 <code>docker pull garcianacho/fhisc2:Illumina</code>
 
 ## Running the pipeline
+*ArticV4*   
+<code>docker run -it --rm -v $(pwd):/home/docker/Fastq garcianacho/fhisc2:Illumina SARS-CoV-2_Illumina_Docker_V12.sh ArticV4</code>
+*ArticV3*   
+<code>docker run -it --rm -v $(pwd):/home/docker/Fastq garcianacho/fhisc2:Illumina SARS-CoV-2_Illumina_Docker_V12.sh ArticV3</code>
 
-The script expects this folder structure:    
+*Note that older versions of docker might require the flag --privileged and that multiuser systems might require the flag -u 1000 in order to run*
+
+The script expects the following folder structure:    
 <pre>
 ./ExpXX    
   |-ExperimentXX.xlsx      
