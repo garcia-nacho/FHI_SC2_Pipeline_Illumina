@@ -26,7 +26,7 @@ Alternativetly, it is posible to *pull* updated builds from [Dockerhub](https://
 *ArticV3:*   
 <code>docker run -it --rm -v $(pwd):/home/docker/Fastq garcianacho/fhisc2:Illumina SARS-CoV-2_Illumina_Docker_V12.sh ArticV3</code>
 
-*Note that older versions of docker might require the flag --privileged and that multiuser systems might require the flag -u 1000 in order to run*
+*Note that older versions of docker might require the flag --privileged and that multiuser systems might require the flag -u 1000 to run*
 
 The script expects the following folder structure where the *fastq.gz* files are placed inside independent folders for each Sample
    
@@ -45,10 +45,9 @@ The script expects the following folder structure where the *fastq.gz* files are
   |-...   
 
 </pre>
-    
-Where the fastq.gz files er inside independent folders for each Sample
+   
 
-The script also expects a .xlsx file, that contains information about the position of the samples on a 96-well-plate and the DNA concentration (alternatively this column can be used for the Ct-values).
+The script also expects a *.xlsx* file, that contains information about the position of the samples on a 96-well-plate and the DNA concentration (alternatively this column can be used for the Ct-values).
 If the file is not properly formated the script will run without errors but the Quality-control plot will not be generated or it will contain errors. 
 Note that the script takes the name of the experiment from the name of the xlsx file. If the file is not found the names of the output files might be incorrect. 
 It is possible to download a template of the xlsx file [here](https://github.com/garcia-nacho/FHI_SC2_Pipeline_Illumina/blob/master/Template_FHISC2_Illumina.xlsx?raw=true)
