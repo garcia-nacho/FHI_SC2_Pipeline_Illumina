@@ -34,7 +34,7 @@ Alternativetly, it is posible to *pull* updated builds from [dockerhub](https://
 
 The script expects this folder structure:    
 <pre>
-./_    
+./ExpXX    
   |-ExperimentXX.xlsx      
   |-Sample1     
       |-Sample1_SX_LXXXX_R1.fastq.gz       
