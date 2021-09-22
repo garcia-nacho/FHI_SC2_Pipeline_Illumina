@@ -20,9 +20,9 @@ Alternativetly, it is posible to *pull* updated builds from [dockerhub](https://
 <code>docker pull garcianacho/fhisc2:Illumina</code>
 
 ## Running the pipeline
-*ArticV4*   
-<code>docker run -it --rm -v $(pwd):/home/docker/Fastq garcianacho/fhisc2:Illumina SARS-CoV-2_Illumina_Docker_V12.sh ArticV4</code>
-*ArticV3*   
+*ArticV4:*   
+<code>docker run -it --rm -v $(pwd):/home/docker/Fastq garcianacho/fhisc2:Illumina SARS-CoV-2_Illumina_Docker_V12.sh ArticV4</code>    
+*ArticV3:*   
 <code>docker run -it --rm -v $(pwd):/home/docker/Fastq garcianacho/fhisc2:Illumina SARS-CoV-2_Illumina_Docker_V12.sh ArticV3</code>
 
 *Note that older versions of docker might require the flag --privileged and that multiuser systems might require the flag -u 1000 in order to run*
