@@ -22,6 +22,7 @@ Alternativetly, it is posible to *pull* updated builds from [dockerhub](https://
 ## Running the pipeline
 *ArticV4:*   
 <code>docker run -it --rm -v $(pwd):/home/docker/Fastq garcianacho/fhisc2:Illumina SARS-CoV-2_Illumina_Docker_V12.sh ArticV4</code>    
+   
 *ArticV3:*   
 <code>docker run -it --rm -v $(pwd):/home/docker/Fastq garcianacho/fhisc2:Illumina SARS-CoV-2_Illumina_Docker_V12.sh ArticV3</code>
 
