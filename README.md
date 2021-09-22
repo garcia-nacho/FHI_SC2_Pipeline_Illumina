@@ -58,13 +58,13 @@ It is possible to douwload a template of the xlsx file [here](https://github.com
 -Bam files   
 -Consensus sequences   
 -Aligned consensus sequences   
--Consensus nucleotide sequence for protein S   
--Indel and frameshift identification   
+-Consensus nucleotide sequence for gene *S*   
+-*Indels* and frameshift identification   
 -Quality-control plot for the plate to detect possible contaminations   
--Phylogenetic-tree plot of the samples analyzed   
+-Phylogenetic-tree plot of the samples   
 -Noise during variant calling accross the genome   
 -Quality-control for contaminations/low-quality samples   
--Amplicon efficacy of the selected protocol for all the samples   
+-Amplicon efficacy of the selected primer-set for all the samples   
 
 ## Contributors
  
