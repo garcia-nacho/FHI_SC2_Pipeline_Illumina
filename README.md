@@ -48,13 +48,13 @@ The script expects the following folder structure where the *fastq.gz* files are
     
 Where the fastq.gz files er inside independent folders for each Sample
 
-The scripts also expects a .xlsx file, that contains information about the position of the samples on a 96-well-plate and the DNA concentration (alternatively this column can be used for the Ct-values).
+The script also expects a .xlsx file, that contains information about the position of the samples on a 96-well-plate and the DNA concentration (alternatively this column can be used for the Ct-values).
 If the file is not properly formated the script will run without errors but the Quality-control plot will not be generated or it will contain errors. 
-Note that the scripts takes the name of the experiment from the name of the xlsx file. If the file is not found the names of the output files might be incorrect. 
-It is possible to douwload a template of the xlsx file [here](https://github.com/garcia-nacho/FHI_SC2_Pipeline_Illumina/blob/master/Template_FHISC2_Illumina.xlsx?raw=true)
+Note that the script takes the name of the experiment from the name of the xlsx file. If the file is not found the names of the output files might be incorrect. 
+It is possible to download a template of the xlsx file [here](https://github.com/garcia-nacho/FHI_SC2_Pipeline_Illumina/blob/master/Template_FHISC2_Illumina.xlsx?raw=true)
 
 ## Outputs
--Summary including: Mutations found, pangolin lineage, number of reads, covergae, depth, etc...   
+-Summary including mutations found, pangolin lineage, number of reads, coverage, depth, etc...   
 -Bam files   
 -Consensus sequences   
 -Aligned consensus sequences   
@@ -62,7 +62,7 @@ It is possible to douwload a template of the xlsx file [here](https://github.com
 -*Indels* and frameshift identification   
 -Quality-control plot for the plate to detect possible contaminations   
 -Phylogenetic-tree plot of the samples   
--Noise during variant calling accross the genome   
+-Noise during variant calling across the genome   
 -Quality-control for contaminations/low-quality samples   
 -Amplicon efficacy of the selected primer-set for all the samples   
 
