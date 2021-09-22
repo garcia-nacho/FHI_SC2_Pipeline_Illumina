@@ -1,4 +1,4 @@
-# FHI SARS-CoV-2 Illumina Pipeline
+# FHI's SARS-CoV-2 Illumina Pipeline
 Bioinformatic pipeline for SARS-CoV-2 sequence analysis used at the [Folkehelseinstituttet](https://www.fhi.no)
 
 ## Description
