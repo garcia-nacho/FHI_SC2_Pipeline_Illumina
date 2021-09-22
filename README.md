@@ -33,12 +33,12 @@ Alternativetly, it is posible to *pull* updated builds from [dockerhub](https://
 ## Running the pipeline
 
 The script expects this folder structure:
-./_   
-  |-ExperimentXX.xlsx   
-  |-Sample1   
-      |-Sample1_SX_LXXXX_R1.fastq.gz   
-      |-Sample1_SX_LXXXX_R2.fastq.gz   
-  |-Sample2  
+./_    
+  |-ExperimentXX.xlsx      
+  |-Sample1     
+      |-Sample1_SX_LXXXX_R1.fastq.gz       
+      |-Sample1_SX_LXXXX_R2.fastq.gz      
+  |-Sample2      
       |-Sample2_SX_LXXXX_R1.fastq.gz   
       |-Sample2_SX_LXXXX_R2.fastq.gz   
   |-Sample3   
