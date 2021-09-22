@@ -28,7 +28,8 @@ Alternativetly, it is posible to *pull* updated builds from [dockerhub](https://
 
 *Note that older versions of docker might require the flag --privileged and that multiuser systems might require the flag -u 1000 in order to run*
 
-The script expects the following folder structure:    
+The script expects the following folder structure where the *fastq.gz* files are placed inside independent folders for each Sample
+   
 <pre>
 ./ExpXX    
   |-ExperimentXX.xlsx      
