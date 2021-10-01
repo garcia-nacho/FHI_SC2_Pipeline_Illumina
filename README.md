@@ -65,5 +65,4 @@ It is possible to download a template of the xlsx file [here](https://github.com
 -Quality-control for contaminations/low-quality samples   
 -Amplicon efficacy of the selected primer-set for all the samples   
 
-## Contributors
  
