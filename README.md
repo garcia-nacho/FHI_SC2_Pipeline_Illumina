@@ -1,8 +1,8 @@
 # FHI's SARS-CoV-2 Illumina Pipeline
 Bioinformatic pipeline for SARS-CoV-2 sequence analysis used at the [Folkehelseinstituttet](https://www.fhi.no)
 
-### Warning!
-*This repository is longer mantained here.* 
+### Warning!!!!!!!!!
+**This repository is longer mantained here.**    
 To get the last updated version of it please visit:
 [Folkehelseinstuttet's github](https://github.com/folkehelseinstituttet/FHI_SC2_Pipeline_Illumina/)
 
