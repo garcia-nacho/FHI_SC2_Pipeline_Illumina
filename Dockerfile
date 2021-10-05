@@ -56,11 +56,11 @@ RUN cd /home/docker \
     && pip install seaborn \
     && pip install matplotlib\
     && ln -s /home/docker/miniconda3/lib/libcrypto.so.1.1 /home/docker/miniconda3/lib/libcrypto.so.1.0.0
-    
+
 USER root
 RUN Rscript -e "install.packages(c('doSNOW', \
 'progress','foreach','parallel', 'pdftools', 'doParallel', \
-'BiocManager', 'ggplot2', 'seqinr', 'xgboost', 'reshape2', 'httr','phangorn','ggpubr' ,'ape','readxl', 'geomnet','rvest', 'tidyverse','writexl','nnet', 'stringr', 'devtools'))"
+'BiocManager', 'ggplot2', 'seqinr', 'xgboost', 'reshape2', 'httr','phangorn','ggpubr' ,'ape','readxl', 'geomnet','rvest', 'tidyverse','writexl','nnet', 'stringr', 'devtools', 'pacman','phylotools','optparse'))"
 RUN Rscript -e "devtools::install_github('sctyner/geomnet')"
 RUN rm -rf /var/lib/apt/lists/* \
     && rm /usr/bin/gcc /usr/bin/gcc-ar /usr/bin/gcc-nm /usr/bin/gcc-ranlib \
