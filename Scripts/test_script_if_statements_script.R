@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
 
 # Check, install and load packages
-install.packages("pacman")
-
+#install.packages("pacman")
+library("pacman")
 pacman::p_load(optparse, phylotools, tidyverse, readxl, stringr)
 
 option_list <- list(
