@@ -1,8 +1,6 @@
 #!/usr/bin/env Rscript
 
-# Check, install and load packages
-#install.packages("pacman")
-library("pacman")
+# Load packages
 pacman::p_load(optparse, phylotools, tidyverse, readxl, stringr)
 
 option_list <- list(
@@ -35,14 +33,13 @@ if (!is.null(opt$drop)){
   drop <- "none"
 }
 
-
-setwd("/home/jonr/Desktop/")
-
 # Trekke ut KEYs fra BN ---------------------------------------------------
 
 # Les inn BN spørring. Husk å Refreshe og lagre den originale excel-fila først (N:/Virologi/Influensa/2021/Spørringsfiler BN/SQLSERVER_TestBN_Spørring_Entrytable.xlsx)
 BN <- suppressWarnings(read_excel("/mnt/N/Virologi/Influensa/2021/Spørringsfiler BN/SQLSERVER_TestBN_Spørring_Entrytable.xlsx") %>% 
-  select(KEY, REKVNR, PROVE_TATT, FYLKENAVN, MATERIALE, PROSENTDEKNING_GENOM, DEKNING_NANOPORE, SEKV_OPPSETT_NANOPORE, DEKNING_NANOPORE, SEKV_OPPSETT_SWIFT7, SEQUENCEID_NANO29, SEQUENCEID_SWIFT, COVERAGE_BREADTH_SWIFT, GISAID_PLATFORM, GISAID_EPI_ISL, GENOTYPE_SVART_I_LABWARE, COVERAGE_BREATH_EKSTERNE, SAMPLE_CATEGORY, INNSENDER) %>% 
+  select(KEY, REKVNR, PROVE_TATT, FYLKENAVN, MATERIALE, PROSENTDEKNING_GENOM, DEKNING_NANOPORE, SEKV_OPPSETT_NANOPORE, DEKNING_NANOPORE, SEKV_OPPSETT_SWIFT7, 
+         SEQUENCEID_NANO29, SEQUENCEID_SWIFT, COVERAGE_BREADTH_SWIFT, GISAID_PLATFORM, GISAID_EPI_ISL, GENOTYPE_SVART_I_LABWARE, COVERAGE_BREATH_EKSTERNE, 
+         SAMPLE_CATEGORY, INNSENDER, COVERAGE_DEPTH_SWIFT, COVARAGE_DEPTH_NANO, RES_CDC_INFA_RX, RES_CDC_INFB_CT) %>% 
   rename("Dekning_Artic" = PROSENTDEKNING_GENOM, 
          "Dekning_Swift" = COVERAGE_BREADTH_SWIFT,
          "Dekning_Nano" = DEKNING_NANOPORE))
@@ -70,7 +67,6 @@ covv_add_location <- "Unknown"
 covv_provider_sample_id <- "Unknown"
 covv_last_vaccinated <- "Unknown"
 covv_treatment <- "Unknown"
-covv_coverage <- "Unknown"
 orig_lab <- NA
 orig_adr <- NA
 
@@ -276,8 +272,7 @@ if (platform == "Swift_FHI"){
                "covv_add_location" = covv_add_location,
                "covv_provider_sample_id" = covv_provider_sample_id,
                "covv_last_vaccinated" = covv_last_vaccinated,
-               "covv_treatment" = covv_treatment,
-               "covv_coverage" = covv_coverage) %>% 
+               "covv_treatment" = covv_treatment) %>% 
     # Beholde endelige kolonner og rekkefølge
     select("submitter",
            "fn",
@@ -305,7 +300,7 @@ if (platform == "Swift_FHI"){
            "covv_provider_sample_id",
            "covv_last_vaccinated",
            "covv_treatment",
-           "covv_coverage",
+           "covv_coverage" = COVERAGE_DEPTH_SWIFT,
            "INNSENDER")
   
   # Legge inn orig lab og adresse
@@ -396,7 +391,9 @@ if (platform == "Swift_FHI"){
     # Filtrer på coverage >= 97% 
     filter(Dekning_Swift >=97) %>% 
     # Fjerne de som mangler Fylkenavn
-    filter(!is.na(FYLKENAVN))
+    filter(!is.na(FYLKENAVN)) %>% 
+    # Remove "OUS-" from Sequence ID
+    mutate(SEQUENCE_ID_TRIMMED = str_remove(SEQUENCEID_SWIFT, "OUS-"))
   
   # Fjerne keys pga frameshift
   suppressWarnings(
@@ -415,9 +412,10 @@ if (platform == "Swift_FHI"){
   sub_lab <- "Norwegian Institute of Public Health, Department of Virology"
   address <- "P.O.Box 222 Skoyen, 0213 Oslo, Norway"
   authors <- "Mona Holberg-Petersen, Lise Andresen, Cathrine Fladeby, Mariann Nilsen, Teodora Plamenova Ribarska, Pål Marius Bjørnstad, Gregor D. Gilfillan, Arvind Yegambaram Meenakshi Sundaram,Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Pedersen Benedikte Nevjen, Line Victoria Moen, Rasmus Riis Kopperud, Hilde Vollan, Olav Hungnes, Karoline Bragstad"
+  orig_lab <- "Oslo University Hospital, Department of Microbiology"
+  orig_adr <- "P.O.Box 4956 Nydalen, N-0424 Oslo, Norway"
   
-  
-  metadata <- IDs %>% 
+  metadata <- oppsett_details %>% 
     # Lage kolonne for "year"
     separate(PROVE_TATT, into = c("Year", NA, NA), sep = "-", remove = FALSE) %>% 
     # Trekke ut sifrene fra 5 og til det siste fra BN KEY
@@ -454,8 +452,7 @@ if (platform == "Swift_FHI"){
                "covv_add_location" = covv_add_location,
                "covv_provider_sample_id" = covv_provider_sample_id,
                "covv_last_vaccinated" = covv_last_vaccinated,
-               "covv_treatment" = covv_treatment,
-               "covv_coverage" = covv_coverage) %>% 
+               "covv_treatment" = covv_treatment) %>% 
     # Beholde endelige kolonner og rekkefølge
     select("submitter",
            "fn",
@@ -483,15 +480,7 @@ if (platform == "Swift_FHI"){
            "covv_provider_sample_id",
            "covv_last_vaccinated",
            "covv_treatment",
-           "covv_coverage",
-           "INNSENDER")
-  
-  # Legge inn orig lab og adresse
-  metadata <- lookup_function(metadata)
-  
-  # Remove column INNSENDER
-  metadata <- metadata %>% select(-INNSENDER)
-  
+           "covv_coverage"= COVERAGE_DEPTH_SWIFT)
   
   # Write csv file
   write_csv(metadata, file = opt$metadata)
@@ -503,7 +492,7 @@ if (platform == "Swift_FHI"){
   dirs_fhi <- list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_MIK", 
                         recursive = FALSE)
   # Pick our the relevant oppsett
-  dir <- dirs_fhi[grep(paste0(oppsett), dirs_fhi)]
+  dir <- dirs_fhi[grep(paste0(oppsett, "\\b"), dirs_fhi)]
   
   # List the files 
   filepaths <- list.files(path = dir,
@@ -515,8 +504,8 @@ if (platform == "Swift_FHI"){
   
   # Find which filepaths to keep
   keep <- vector()
-  for (i in seq_along(oppsett_details$SEQUENCEID_SWIFT)){
-    keep[i] <- filepaths[grep(oppsett_details$SEQUENCEID_SWIFT[i], filepaths)]
+  for (i in seq_along(oppsett_details$SEQUENCE_ID_TRIMMED)){
+    keep[i] <- filepaths[grep(oppsett_details$SEQUENCE_ID_TRIMMED[i], filepaths)]
   }
   
   # Read each fasta file and combine them to create one file
@@ -534,8 +523,7 @@ if (platform == "Swift_FHI"){
   
   # Fix names to match SEQUENCEID_SWIFT
   fastas <- fastas %>% 
-    mutate(SEQUENCEID_SWIFT = str_remove(seq.name, "_ivar_masked")) #%>% 
-    #mutate(SEQUENCEID_SWIFT = str_remove(tmp, protocol))
+    mutate(SEQUENCE_ID_TRIMMED = str_remove(seq.name, "_ivar_masked"))
   
   # Sett Virus name som fasta header
   # Først lage en mapping mellom SEQUENCEID_SWIFT og virus name
@@ -551,10 +539,10 @@ if (platform == "Swift_FHI"){
                "Continent" = "Europe/") %>% 
     # Make "Virus name" column
     unite("covv_virus_name", c(GISAID_prefix, Country, Uniq_nr, Separator, Year), sep = "", remove = FALSE) %>% 
-    select(SEQUENCEID_SWIFT, KEY, covv_virus_name)
+    select(SEQUENCEID_SWIFT, KEY, covv_virus_name, SEQUENCE_ID_TRIMMED)
   
   
-  fastas <- left_join(fastas, KEY_virus_mapping, by = "SEQUENCEID_SWIFT") %>% 
+  fastas <- left_join(fastas, KEY_virus_mapping, by = "SEQUENCE_ID_TRIMMED") %>% 
     select(`seq.name` = covv_virus_name, 
            seq.text)
   
@@ -631,8 +619,7 @@ if (platform == "Swift_FHI"){
                "covv_add_location" = covv_add_location,
                "covv_provider_sample_id" = covv_provider_sample_id,
                "covv_last_vaccinated" = covv_last_vaccinated,
-               "covv_treatment" = covv_treatment,
-               "covv_coverage" = covv_coverage) %>% 
+               "covv_treatment" = covv_treatment) %>% 
     # Beholde endelige kolonner og rekkefølge
     select("submitter",
            "fn",
@@ -660,7 +647,7 @@ if (platform == "Swift_FHI"){
            "covv_provider_sample_id",
            "covv_last_vaccinated",
            "covv_treatment",
-           "covv_coverage",
+           "covv_coverage" = RES_CDC_INFA_RX,
            "INNSENDER")
   
   # Legge inn orig lab og adresse
@@ -679,7 +666,7 @@ if (platform == "Swift_FHI"){
   dirs_fhi <- list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2021", 
                         recursive = FALSE)
   # Pick our the relevant oppsett
-  dir <- dirs_fhi[grep(paste0(oppsett), dirs_fhi)]
+  dir <- dirs_fhi[grep(paste0(oppsett, "\\b"), dirs_fhi)]
   
   # List the files 
   filepaths <- list.files(path = dir,
@@ -771,7 +758,7 @@ if (platform == "Swift_FHI"){
   address <- "P.O.Box 222 Skoyen, 0213 Oslo, Norway"
   authors <- "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Line Victoria Moen, Debech Nadia, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Hilde Vollan, Karoline Bragstad, Olav Hungnes"
   
-  metadata <- oppsett_info %>% 
+  metadata <- oppsett_details %>% 
     # Lage kolonne for "year"
     separate(PROVE_TATT, into = c("Year", NA, NA), sep = "-", remove = FALSE) %>%
     # Trekke ut sifrene fra 5 og til det siste fra BN KEY
@@ -808,8 +795,7 @@ if (platform == "Swift_FHI"){
                "covv_add_location" = covv_add_location,
                "covv_provider_sample_id" = covv_provider_sample_id,
                "covv_last_vaccinated" = covv_last_vaccinated,
-               "covv_treatment" = covv_treatment,
-               "covv_coverage" = covv_coverage) %>% 
+               "covv_treatment" = covv_treatment) %>% 
     # Beholde endelige kolonner og rekkefølge
     select("submitter",
            "fn",
@@ -837,7 +823,7 @@ if (platform == "Swift_FHI"){
            "covv_provider_sample_id",
            "covv_last_vaccinated",
            "covv_treatment",
-           "covv_coverage",
+           "covv_coverage" = COVARAGE_DEPTH_NANO,
            "INNSENDER")
   
   # Legge inn orig lab og adresse
@@ -858,8 +844,8 @@ if (platform == "Swift_FHI"){
   # Pick our the relevant oppsett
   oppsett <- gsub("Nr", "", (gsub("/Nano", "", oppsett)))
   dir <- dirs_fhi[grep(paste0(oppsett), dirs_fhi)]
-  #NB! Denne må automatiseres - hvordan?
-  dir <- dir[-grep("RAPID", dir)]
+  #NB! Denne må automatiseres - hvordan? EN if statement om hvis RAPID så... eller temp... eller copy
+  #dir <- dir[-grep("RAPID", dir)]
   
   # List the files 
   filepaths <- list.files(path = dir,
@@ -867,13 +853,12 @@ if (platform == "Swift_FHI"){
                           full.names = TRUE,
                           recursive = TRUE)
   
-  # Dropper det siste tallet.
-  samples <- str_sub(gsub("_.*","", gsub(".*/","", filepaths)), start = 1, end = -2)
+  samples <- str_sub(gsub("_.*","", gsub(".*/","", filepaths)), start = 1, end = -1)
   
   # Find which filepaths to keep
   keep <- vector()
-  for (i in seq_along(oppsett_info$KEY)){
-    keep[i] <- filepaths[grep(oppsett_info$KEY[i], filepaths)]
+  for (i in seq_along(oppsett_details$KEY)){
+    keep[i] <- filepaths[grep(oppsett_details$KEY[i], filepaths)]
   }
   
   # Read each fasta file and combine them to create one file
@@ -893,11 +878,11 @@ if (platform == "Swift_FHI"){
   fastas <- fastas %>% 
     # Legger inn denne først for da kan jeg senere slice stringen fra første til nest siste karakter. Mer robust
     mutate(tmp = gsub("_.*", "", seq.name)) %>% 
-    mutate(KEY = str_sub(tmp, start = 1, end = -2))
+    mutate(KEY = str_sub(tmp, start = 1, end = -1))
   
   # Sett Virus name som fasta header
   # Først lage en mapping mellom KEY og virus name
-  KEY_virus_mapping <- oppsett_info %>% 
+  KEY_virus_mapping <- oppsett_details %>% 
     # Lage kolonne for "year"
     separate(PROVE_TATT, into = c("Year", NA, NA), sep = "-", remove = FALSE) %>% 
     # Trekke ut sifrene fra 5 og til det siste fra BN KEY
