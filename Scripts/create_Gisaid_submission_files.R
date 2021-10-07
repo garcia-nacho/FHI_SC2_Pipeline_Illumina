@@ -666,7 +666,7 @@ if (platform == "Swift_FHI"){
   dirs_fhi <- list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2021", 
                         recursive = FALSE)
   # Pick our the relevant oppsett
-  dir <- dirs_fhi[grep(paste0(oppsett, "\\b"), dirs_fhi)]
+  dir <- dirs_fhi[grep(paste0(oppsett, "_Corona"), dirs_fhi)]
   
   # List the files 
   filepaths <- list.files(path = dir,
