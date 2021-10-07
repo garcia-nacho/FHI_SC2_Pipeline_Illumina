@@ -101,7 +101,7 @@ lab_lookup_table <- tribble(
   21,	NA, NA,
   22,	"Department of medical microbiology, section Aalesund, Aalesund Hospital",	"N-6026 Aalesund, Norway",
   23,	NA, NA,
-  24, NA, NA,
+  24, "Department Medical Microbiology, Baerum Hospital, Vestre Viken Health Trust", "P.O.Box 800, N-3004 Drammen, Norway",
   25,	"Telemark Hospital Trust – Skien, Dept. of Medical Microbiology",	"P.O.Box 2900 Kjørbekk, N-3710 Skien",
   26,	"Unilabs Laboratory Medicine",	"Silurveien 2 B, N-0380 Oslo, Norway",
   27,	"Oslo Helse", "Hegdehaugsveien 36, 0352 Oslo"
