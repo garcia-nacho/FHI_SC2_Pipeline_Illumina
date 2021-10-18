@@ -36,7 +36,7 @@ if (!is.null(opt$drop)){
 # Trekke ut KEYs fra BN ---------------------------------------------------
 
 # Les inn BN spørring. Husk å Refreshe og lagre den originale excel-fila først (N:/Virologi/Influensa/2021/Spørringsfiler BN/SQLSERVER_TestBN_Spørring_Entrytable.xlsx)
-BN <- suppressWarnings(read_excel("/mnt/N/Virologi/Influensa/2021/Spørringsfiler BN/SQLSERVER_TestBN_Spørring_Entrytable.xlsx", sheet = "Sporring BN") %>% 
+BN <- suppressWarnings(read_excel("/home/docker/Influensa/2021/Spørringsfiler BN/SQLSERVER_TestBN_Spørring_Entrytable.xlsx", sheet = "Sporring BN") %>% 
   select(KEY, REKVNR, PROVE_TATT, FYLKENAVN, MATERIALE, PROSENTDEKNING_GENOM, DEKNING_NANOPORE, SEKV_OPPSETT_NANOPORE, DEKNING_NANOPORE, SEKV_OPPSETT_SWIFT7, 
          SEQUENCEID_NANO29, SEQUENCEID_SWIFT, COVERAGE_BREADTH_SWIFT, GISAID_PLATFORM, GISAID_EPI_ISL, GENOTYPE_SVART_I_LABWARE, COVERAGE_BREATH_EKSTERNE, 
          SAMPLE_CATEGORY, INNSENDER, COVERAGE_DEPTH_SWIFT, COVARAGE_DEPTH_NANO, RES_CDC_INFA_RX, RES_CDC_INFB_CT) %>% 
@@ -317,7 +317,7 @@ if (platform == "Swift_FHI"){
   
   # Search the N: disk for consensus sequences. This could take a few minutes.
   # List relevant folders to search through
-  dirs_fhi <- list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_FHI/2021/", 
+  dirs_fhi <- list.dirs("/home/docker/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_FHI/2021/", 
                         recursive = FALSE)
   # Pick our the relevant oppsett
   dir <- dirs_fhi[grep(paste0(oppsett, "\\b"), dirs_fhi)]
@@ -489,7 +489,7 @@ if (platform == "Swift_FHI"){
   
   # Search the N: disk for consensus sequences. This could take a few minutes.
   # List relevant folders to search through
-  dirs_fhi <- list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_MIK", 
+  dirs_fhi <- list.dirs("/home/docker/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_MIK", 
                         recursive = FALSE)
   # Pick our the relevant oppsett
   dir <- dirs_fhi[grep(paste0(oppsett, "\\b"), dirs_fhi)]
@@ -663,7 +663,7 @@ if (platform == "Swift_FHI"){
   
   # Search the N: disk for consensus sequences. This could take a few minutes.
   # List relevant folders to search through
-  dirs_fhi <- list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2021", 
+  dirs_fhi <- list.dirs("/home/docker/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2021", 
                         recursive = FALSE)
   # Pick our the relevant oppsett
   dir <- dirs_fhi[grep(paste0(oppsett, "_Corona"), dirs_fhi)]
@@ -839,7 +839,7 @@ if (platform == "Swift_FHI"){
   
   # Search the N: disk for consensus sequences. This could take a few minutes.
   # List relevant folders to search through
-  dirs_fhi <- list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2021", 
+  dirs_fhi <- list.dirs("/home/docker/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2021", 
                         recursive = FALSE)
   # Pick our the relevant oppsett
   oppsett <- gsub("Nr", "", (gsub("/Nano", "", oppsett)))
