@@ -14,7 +14,16 @@ library(geomnet)
 input.folder<-"/home/docker/Fastq/"   #Docker
 
 summaries<-list.files(input.folder, pattern = ".*_summaries_and_Pangolin.csv", full.names = TRUE, recursive = TRUE)
+
+
 summaries.file<-summaries
+
+#Noise into summaries 20102021
+noise.file<-list.files(input.folder, pattern = "ResultsNoisExtractor.*.xlsx", full.names = TRUE, recursive = TRUE)
+noise.summ<-read_xlsx(noise.file)
+#-
+
+
 name<-gsub("_.*","",gsub(".*/","", summaries))
 Plate<- list.files(input.folder, pattern = ".*\\.xlsx", full.names = TRUE, recursive = TRUE)
 if(length(Plate[grep("FrameShift",Plate)])==1) Plate<-Plate[-grep("FrameShift",Plate)]
@@ -33,6 +42,12 @@ pad$ctvalue<-NA
 Plate<-rbind(Plate, pad)
 
 summaries<-read.csv(summaries, sep = "\t")
+
+#Noise into summaries 20102021
+colnames(noise.summ)[which(colnames(noise.summ)=="Sample")]<-"name"
+noise.summ<-merge(summaries, noise.summ[,c(1,11,12)], all.x = TRUE, by="name")
+write.csv(noise.summ, gsub(".csv","_Noise.csv",summaries.file))
+#-
 
 total<- merge(summaries, Plate, all=TRUE, by="name")
 total$PX<-as.numeric(gsub("[A-Z]","", total$Position))
